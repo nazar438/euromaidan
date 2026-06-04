@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Революція Гідності · Майдан Незалежності · Зима 2014</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Raleway:wght@300;400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0c10;
+    font-family: 'Raleway', sans-serif;
+    color: #e8dcc8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 1400px;
+    padding: 24px 16px 32px;
+  }
+
+  .title-block {
+    text-align: center;
+    margin-bottom: 18px;
+    position: relative;
+  }
+
+  .title-block h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #f5e6c8;
+    text-shadow: 0 2px 24px rgba(255,200,60,0.18);
+  }
+
+  .title-block .sub {
+    font-size: clamp(0.75rem, 1.6vw, 1rem);
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: #b0a88a;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255,210,80,0.12), 0 24px 80px rgba(0,0,0,0.7);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .caption {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .caption p {
+    font-size: clamp(0.72rem, 1.3vw, 0.88rem);
+    font-weight: 300;
+    line-height: 1.7;
+    color: #9a9282;
+    max-width: 680px;
+    font-style: italic;
+  }
+
+  .caption .date-badge {
+    background: rgba(255,210,60,0.08);
+    border: 1px solid rgba(255,210,60,0.2);
+    border-radius: 2px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    color: #d4b96a;
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="title-block">
+    <h1>Революція Гідності · Майдан Незалежності</h1>
+    <div class="sub">Київ, Україна &nbsp;·&nbsp; Зима 2013–2014</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="scene"></canvas>
+  </div>
+
+  <div class="caption">
+    <p>Сотні тисяч українців вийшли на Майдан Незалежності, вимагаючи євроінтеграції, верховенства права та гідності. Масовий громадянський протест став одним з найзначніших моментів в сучасній історії України.</p>
+    <div class="date-badge">Листопад 2013 — Лютий 2014</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientWidth * 9 / 16;
+}
+resize();
+window.addEventListener('resize', () => { resize(); draw(); });
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+const W = () => canvas.width;
+const H = () => canvas.height;
+const rng = (min, max) => Math.random() * (max - min) + min;
+
+// Animation state
+let t = 0;
+let snowflakes = [];
+let fireParticles = [];
+let smokeParticles = [];
+let crowdPulse = 0;
+
+function initParticles() {
+  snowflakes = Array.from({length: 220}, () => ({
+    x: Math.random() * W(),
+    y: Math.random() * H(),
+    r: rng(0.5, 2.2),
+    vx: rng(-0.4, 0.4),
+    vy: rng(0.3, 1.1),
+    a: rng(0.3, 0.9),
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: rng(0.01, 0.04)
+  }));
+
+  fireParticles = Array.from({length: 80}, () => createFire());
+  smokeParticles = Array.from({length: 40}, () => createSmoke());
+}
+
+function createFire(x, y) {
+  return {
+    x: x || 0, y: y || 0,
+    vx: rng(-0.6, 0.6),
+    vy: rng(-2.5, -0.8),
+    life: Math.random(),
+    maxLife: rng(0.6, 1.4),
+    size: rng(2, 6),
+    hue: rng(15, 45),
+    baseX: x || 0, baseY: y || 0
+  };
+}
+
+function createSmoke(x, y) {
+  return {
+    x: x || 0, y: y || 0,
+    vx: rng(-0.3, 0.3),
+    vy: rng(-0.8, -0.3),
+    life: Math.random(),
+    maxLife: rng(2.5, 5),
+    size: rng(4, 18),
+    baseX: x || 0, baseY: y || 0
+  };
+}
+
+// ─── Draw Functions ────────────────────────────────────────────────────────────
+
+function drawSky() {
+  const w = W(), h = H();
+  // Deep winter night-to-dusk gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+  sky.addColorStop(0,   '#0d1520');
+  sky.addColorStop(0.3, '#1a2535');
+  sky.addColorStop(0.6, '#2d3a4a');
+  sky.addColorStop(1,   '#3d4a5a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h * 0.55);
+
+  // Moon glow
+  const moonX = w * 0.82, moonY = h * 0.09;
+  const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, h * 0.18);
+  moonGlow.addColorStop(0, 'rgba(220,210,180,0.12)');
+  moonGlow.addColorStop(1, 'rgba(220,210,180,0)');
+  ctx.fillStyle = moonGlow;
+  ctx.fillRect(0, 0, w, h * 0.55);
+
+  // Moon
+  ctx.beginPath();
+  ctx.arc(moonX, moonY, h * 0.025, 0, Math.PI * 2);
+  ctx.fillStyle = '#e8dfc0';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(moonX - h * 0.007, moonY - h * 0.004, h * 0.022, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a2535';
+  ctx.fill();
+
+  // Stars
+  ctx.save();
+  const starData = [
+    [0.05,0.05],[0.12,0.03],[0.18,0.09],[0.25,0.04],[0.32,0.07],
+    [0.4,0.02],[0.48,0.08],[0.55,0.03],[0.62,0.06],[0.7,0.02],
+    [0.08,0.14],[0.22,0.12],[0.38,0.15],[0.52,0.11],[0.65,0.13],
+    [0.75,0.04],[0.9,0.06],[0.95,0.11],[0.88,0.15],[0.78,0.13],
+    [0.15,0.18],[0.3,0.16],[0.45,0.19],[0.6,0.17],[0.72,0.18]
+  ];
+  starData.forEach(([sx, sy], i) => {
+    const flicker = 0.5 + 0.5 * Math.sin(t * 1.2 + i * 0.7);
+    ctx.globalAlpha = 0.4 + 0.4 * flicker;
+    ctx.fillStyle = '#d8e0f0';
+    ctx.beginPath();
+    ctx.arc(sx * w, sy * h * 0.55, 0.8 + 0.4 * flicker, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawDistantBuildings() {
+  const w = W(), h = H();
+  const baseY = h * 0.48;
+
+  // Far cityscape silhouette
+  ctx.fillStyle = '#1e2b3a';
+  const blocks = [
+    [0, 0.38, 0.12, 0.12],
+    [0.09, 0.35, 0.06, 0.14],
+    [0.13, 0.33, 0.08, 0.16],
+    [0.19, 0.37, 0.1, 0.12],
+    [0.27, 0.32, 0.07, 0.17],
+    [0.32, 0.34, 0.09, 0.15],
+    [0.39, 0.36, 0.13, 0.13],
+    [0.5, 0.33, 0.08, 0.16],
+    [0.56, 0.3, 0.06, 0.19], // hotel ukraine
+    [0.6, 0.35, 0.12, 0.14],
+    [0.7, 0.36, 0.1, 0.13],
+    [0.78, 0.34, 0.09, 0.15],
+    [0.85, 0.37, 0.11, 0.12],
+    [0.93, 0.35, 0.08, 0.14],
+  ];
+
+  blocks.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(bx * w, by * h, bw * w, bh * h);
+  });
+
+  // Lit windows in buildings
+  ctx.save();
+  for (let i = 0; i < 60; i++) {
+    const bx = Math.random();
+    const by = 0.32 + Math.random() * 0.06;
+    const flicker = Math.random() > 0.1;
+    if (flicker) {
+      ctx.globalAlpha = 0.3 + 0.3 * Math.random();
+      ctx.fillStyle = Math.random() > 0.5 ? '#f5d080' : '#a0c4ff';
+      ctx.fillRect(bx * w, by * h, w * 0.008, h * 0.012);
+    }
+  }
+  ctx.restore();
+
+  // Hotel Ukraine / main tall building with details
+  const htlX = w * 0.555, htlW = w * 0.07, htlY = h * 0.28, htlH = h * 0.22;
+  ctx.fillStyle = '#182330';
+  ctx.fillRect(htlX, htlY, htlW, htlH);
+  // Hotel windows rows
+  ctx.fillStyle = '#f5c840';
+  ctx.globalAlpha = 0.5;
+  for (let row = 0; row < 7; row++) {
+    for (let col = 0; col < 4; col++) {
+      if (Math.random() > 0.3) {
+        ctx.fillRect(htlX + col * (htlW/4) + 2, htlY + 5 + row * (htlH/8), htlW/6, htlH/12);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+  // Rooftop spire
+  ctx.fillStyle = '#141f2b';
+  ctx.beginPath();
+  ctx.moveTo(htlX + htlW/2, htlY - h * 0.04);
+  ctx.lineTo(htlX + htlW * 0.3, htlY);
+  ctx.lineTo(htlX + htlW * 0.7, htlY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawIndependenceMonument() {
+  const w = W(), h = H();
+  // Iconic column of independence
+  const colX = w * 0.5, colBaseY = h * 0.52, colW = w * 0.014, colH = h * 0.28;
+
+  // Column glow (spotlit)
+  const glow = ctx.createRadialGradient(colX, colBaseY - colH * 0.5, 0, colX, colBaseY - colH * 0.5, w * 0.08);
+  glow.addColorStop(0, 'rgba(255,230,160,0.15)');
+  glow.addColorStop(1, 'rgba(255,230,160,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(colX - w * 0.08, colBaseY - colH * 1.1, w * 0.16, colH * 1.3);
+
+  // Pedestal
+  ctx.fillStyle = '#c8b88a';
+  ctx.fillRect(colX - colW * 2, colBaseY - h * 0.04, colW * 4, h * 0.04);
+  ctx.fillRect(colX - colW * 1.5, colBaseY - h * 0.07, colW * 3, h * 0.035);
+
+  // Column shaft
+  const colGrad = ctx.createLinearGradient(colX - colW * 0.5, 0, colX + colW * 0.5, 0);
+  colGrad.addColorStop(0, '#a89060');
+  colGrad.addColorStop(0.3, '#e8d4a0');
+  colGrad.addColorStop(0.7, '#c8b080');
+  colGrad.addColorStop(1, '#786840');
+  ctx.fillStyle = colGrad;
+  ctx.fillRect(colX - colW * 0.5, colBaseY - colH - h * 0.07, colW, colH);
+
+  // Figure of Berehynia on top
+  const figY = colBaseY - colH - h * 0.11;
+  ctx.fillStyle = '#d4b870';
+  ctx.beginPath();
+  ctx.arc(colX, figY, h * 0.022, 0, Math.PI * 2);
+  ctx.fill();
+  // Outstretched wings/arms
+  ctx.beginPath();
+  ctx.moveTo(colX - w * 0.025, figY + h * 0.01);
+  ctx.lineTo(colX, figY - h * 0.008);
+  ctx.lineTo(colX + w * 0.025, figY + h * 0.01);
+  ctx.fillStyle = '#c8a850';
+  ctx.fill();
+
+  // Stars/spotlights at base of monument (maidan fountain area)
+  const spotsY = colBaseY - h * 0.005;
+  for (let s = -2; s <= 2; s++) {
+    const sg = ctx.createRadialGradient(colX + s * w * 0.03, spotsY, 0, colX + s * w * 0.03, spotsY, w * 0.025);
+    sg.addColorStop(0, 'rgba(255,230,160,0.35)');
+    sg.addColorStop(1, 'rgba(255,230,160,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(colX + s * w * 0.03, spotsY, w * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGround() {
+  const w = W(), h = H();
+  // Snow-covered square ground
+  const grd = ctx.createLinearGradient(0, h * 0.5, 0, h);
+  grd.addColorStop(0, '#2a3040');
+  grd.addColorStop(0.15, '#1e2838');
+  grd.addColorStop(0.5, '#181f2c');
+  grd.addColorStop(1, '#0e1520');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, h * 0.5, w, h * 0.5);
+
+  // Snow on ground - patches of light
+  ctx.fillStyle = 'rgba(220,230,240,0.06)';
+  ctx.fillRect(0, h * 0.5, w, h * 0.04);
+
+  // Cobblestone texture hint
+  ctx.save();
+  ctx.globalAlpha = 0.04;
+  ctx.fillStyle = '#8090a0';
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 30; col++) {
+      const cx = (col / 30) * w + (row % 2) * (w / 60);
+      const cy = h * 0.52 + row * h * 0.03;
+      ctx.fillRect(cx, cy, w / 32, h * 0.025);
+    }
+  }
+  ctx.restore();
+}
+
+function drawStage() {
+  const w = W(), h = H();
+  const stageX = w * 0.34, stageY = h * 0.56, stageW = w * 0.32, stageH = h * 0.07;
+
+  // Stage platform
+  const stGrd = ctx.createLinearGradient(stageX, stageY, stageX, stageY + stageH);
+  stGrd.addColorStop(0, '#3a4555');
+  stGrd.addColorStop(1, '#1e2838');
+  ctx.fillStyle = stGrd;
+  ctx.fillRect(stageX, stageY, stageW, stageH);
+  ctx.fillStyle = '#4a5870';
+  ctx.fillRect(stageX, stageY, stageW, h * 0.006);
+
+  // Stage lighting bars
+  const lightColors = ['rgba(80,100,255,0.5)', 'rgba(255,255,80,0.5)', 'rgba(80,255,120,0.4)'];
+  lightColors.forEach((lc, i) => {
+    ctx.fillStyle = lc;
+    ctx.fillRect(stageX + i * stageW/3 + stageW/9, stageY - h * 0.008, stageW/9, h * 0.006);
+  });
+
+  // Giant screens (warm glow)
+  const screenY = stageY - h * 0.1;
+  const screenH = h * 0.1;
+  // Left screen
+  ctx.fillStyle = '#0a1a30';
+  ctx.fillRect(stageX, screenY, stageW * 0.3, screenH);
+  ctx.fillStyle = 'rgba(80,120,200,0.3)';
+  ctx.fillRect(stageX, screenY, stageW * 0.3, screenH);
+  // Right screen
+  ctx.fillStyle = '#0a1a30';
+  ctx.fillRect(stageX + stageW * 0.7, screenY, stageW * 0.3, screenH);
+  ctx.fillStyle = 'rgba(80,120,200,0.3)';
+  ctx.fillRect(stageX + stageW * 0.7, screenY, stageW * 0.3, screenH);
+
+  // Flags on stage — Ukraine + EU
+  drawFlag(stageX + stageW * 0.38, stageY - h * 0.16, w * 0.018, h * 0.1, 'ukraine', t);
+  drawFlag(stageX + stageW * 0.48, stageY - h * 0.16, w * 0.018, h * 0.1, 'eu', t);
+  drawFlag(stageX + stageW * 0.58, stageY - h * 0.16, w * 0.018, h * 0.1, 'ukraine', t);
+
+  // Speakers / sound rigs
+  ctx.fillStyle = '#222c3a';
+  ctx.fillRect(stageX - w * 0.012, stageY - h * 0.06, w * 0.012, h * 0.06);
+  ctx.fillRect(stageX + stageW, stageY - h * 0.06, w * 0.012, h * 0.06);
+
+  // Stage light beams
+  drawLightBeam(stageX + stageW * 0.2, stageY, -0.4, 'rgba(255,220,120,0.04)');
+  drawLightBeam(stageX + stageW * 0.5, stageY, 0, 'rgba(200,220,255,0.04)');
+  drawLightBeam(stageX + stageW * 0.8, stageY, 0.4, 'rgba(255,220,120,0.04)');
+}
+
+function drawLightBeam(x, y, angle, color) {
+  const w = W(), h = H();
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  const beamGrad = ctx.createLinearGradient(0, 0, 0, -h * 0.5);
+  beamGrad.addColorStop(0, color.replace('0.04', '0.1'));
+  beamGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = beamGrad;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.02, 0);
+  ctx.lineTo(w * 0.02, 0);
+  ctx.lineTo(w * 0.06, -h * 0.5);
+  ctx.lineTo(-w * 0.06, -h * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFlag(x, y, fw, fh, type, time) {
+  const w = W();
+  // Flagpole
+  ctx.fillStyle = '#888';
+  ctx.fillRect(x - 1, y, 2, fh);
+
+  // Wave animation
+  const waveAmp = fw * 0.06 * Math.sin(time * 1.5);
+  ctx.save();
+  ctx.translate(x, y);
+
+  if (type === 'ukraine') {
+    // Blue stripe
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (let i = 0; i <= fw; i++) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, wave);
+    }
+    ctx.lineTo(fw, fh / 2);
+    for (let i = fw; i >= 0; i--) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, fh / 2 + wave);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#005BBB';
+    ctx.fill();
+
+    // Yellow stripe
+    ctx.beginPath();
+    ctx.moveTo(0, fh / 2);
+    for (let i = 0; i <= fw; i++) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, fh / 2 + wave);
+    }
+    ctx.lineTo(fw, fh);
+    for (let i = fw; i >= 0; i--) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, fh + wave);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#FFD500';
+    ctx.fill();
+
+  } else if (type === 'eu') {
+    // Blue background
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    for (let i = 0; i <= fw; i++) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, wave);
+    }
+    ctx.lineTo(fw, fh);
+    for (let i = fw; i >= 0; i--) {
+      const wave = waveAmp * Math.sin((i / fw) * Math.PI * 2 - time * 1.5);
+      ctx.lineTo(i, fh + wave);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#003399';
+    ctx.fill();
+
+    // Stars circle (simplified)
+    ctx.fillStyle = '#FFCC00';
+    const cx = fw / 2, cy = fh / 2;
+    for (let s = 0; s < 12; s++) {
+      const ang = (s / 12) * Math.PI * 2;
+      const sx = cx + Math.cos(ang) * fw * 0.3;
+      const sy = cy + Math.sin(ang) * fh * 0.3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, fw * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // Small flag border
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(x, y, fw, fh);
+}
+
+function drawBarricades() {
+  const w = W(), h = H();
+
+  // Main barricade line - tires stacked
+  const barY = h * 0.7;
+
+  // Left barricade section
+  drawTireStack(w * 0.05, barY, 14, w, h);
+  drawTireStack(w * 0.2, barY, 10, w, h);
+
+  // Right barricade section
+  drawTireStack(w * 0.72, barY, 12, w, h);
+  drawTireStack(w * 0.88, barY, 9, w, h);
+
+  // Sandbag walls
+  drawSandbags(w * 0.08, barY + h * 0.03, w * 0.12, w, h);
+  drawSandbags(w * 0.76, barY + h * 0.03, w * 0.1, w, h);
+
+  // Wire / debris lines
+  ctx.strokeStyle = 'rgba(80,80,80,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.02, barY + h * 0.01);
+  ctx.lineTo(w * 0.32, barY - h * 0.02);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w * 0.7, barY - h * 0.01);
+  ctx.lineTo(w * 0.98, barY + h * 0.015);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawTireStack(x, baseY, count, w, h) {
+  const tireW = w * 0.025, tireH = h * 0.022;
+  for (let i = 0; i < count; i++) {
+    const tx = x + (i % 4) * tireW * 0.95 + (Math.floor(i / 4) % 2) * tireW * 0.45;
+    const ty = baseY - Math.floor(i / 4) * tireH * 0.8;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.ellipse(tx + tireW / 2, ty + tireH / 2, tireW / 2, tireH / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Tire rim
+    ctx.fillStyle = '#2a2a2a';
+    ctx.beginPath();
+    ctx.ellipse(tx + tireW / 2, ty + tireH / 2, tireW * 0.28, tireH * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSandbags(x, y, width, w, h) {
+  const rows = 3, cols = Math.floor(width / (w * 0.022));
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const sx = x + col * w * 0.02 + (row % 2) * w * 0.01;
+      const sy = y - row * h * 0.018;
+      const c = 80 + Math.random() * 30;
+      ctx.fillStyle = `rgb(${c+20},${c+10},${c-10})`;
+      ctx.beginPath();
+      ctx.ellipse(sx + w * 0.01, sy + h * 0.01, w * 0.011, h * 0.01, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawTentCity() {
+  const w = W(), h = H();
+  const tentY = h * 0.62;
+
+  // Multiple tents - camping city
+  const tents = [
+    [0.06, 0.62, 0.07, 0.055, '#2a4a6a'],
+    [0.13, 0.63, 0.06, 0.045, '#4a3a2a'],
+    [0.19, 0.61, 0.07, 0.055, '#3a3a4a'],
+    [0.25, 0.64, 0.055, 0.04, '#2a4a3a'],
+    [0.73, 0.62, 0.065, 0.05, '#4a2a2a'],
+    [0.79, 0.63, 0.06, 0.045, '#2a3a5a'],
+    [0.85, 0.61, 0.07, 0.055, '#3a4a2a'],
+    [0.91, 0.64, 0.055, 0.042, '#4a3a3a'],
+  ];
+
+  tents.forEach(([tx, ty, tw, th, color]) => {
+    const px = tx * w, py = ty * h, pw = tw * w, ph = th * h;
+    // Tent body
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px, py + ph);
+    ctx.lineTo(px + pw / 2, py);
+    ctx.lineTo(px + pw, py + ph);
+    ctx.closePath();
+    ctx.fill();
+    // Snow on tent
+    ctx.fillStyle = 'rgba(200,215,230,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(px + pw * 0.2, py + ph * 0.3);
+    ctx.lineTo(px + pw / 2, py);
+    ctx.lineTo(px + pw * 0.8, py + ph * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // Tent door/entrance glow
+    const glow = ctx.createRadialGradient(px + pw / 2, py + ph * 0.9, 0, px + pw / 2, py + ph * 0.9, pw * 0.3);
+    glow.addColorStop(0, 'rgba(255,200,80,0.2)');
+    glow.addColorStop(1, 'rgba(255,200,80,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(px, py + ph * 0.6, pw, ph * 0.4);
+  });
+
+  // Ukrainian flags on tent poles
+  [[0.09, 0.60], [0.16, 0.60], [0.76, 0.60], [0.88, 0.60]].forEach(([fx, fy]) => {
+    drawFlag(fx * w, fy * h, w * 0.012, h * 0.06, 'ukraine', t * 0.8);
+  });
+}
+
+function drawCrowd() {
+  const w = W(), h = H();
+  crowdPulse = Math.sin(t * 0.8) * 0.5 + 0.5;
+
+  // Far background crowd (very dense, small figures)
+  drawCrowdLayer(h * 0.55, h * 0.63, 0.004, 0.009, 240, '#1a2535', '#243040');
+  // Mid crowd
+  drawCrowdLayer(h * 0.63, h * 0.72, 0.008, 0.015, 140, '#1e2c40', '#2a3a50');
+  // Foreground crowd
+  drawCrowdLayer(h * 0.72, h * 0.85, 0.012, 0.022, 80, '#1a2838', '#253545');
+
+  // Flags waving above crowd - dense!
+  drawCrowdFlags(h * 0.53, 80, 'ukraine');
+  drawCrowdFlags(h * 0.6, 40, 'eu');
+  drawCrowdFlags(h * 0.68, 30, 'ukraine');
+}
+
+function drawCrowdLayer(yTop, yBot, minSize, maxSize, count, darkColor, lightColor) {
+  const w = W(), h = H();
+  for (let i = 0; i < count; i++) {
+    const px = Math.random() * w;
+    const py = yTop + Math.random() * (yBot - yTop);
+    const fh = (minSize + Math.random() * (maxSize - minSize)) * h;
+    const fw = fh * 0.4;
+
+    // Body
+    ctx.fillStyle = Math.random() > 0.5 ? darkColor : lightColor;
+    ctx.fillRect(px - fw / 2, py - fh, fw, fh);
+
+    // Head (lighter)
+    ctx.fillStyle = '#c8a880';
+    ctx.beginPath();
+    ctx.arc(px, py - fh - fw * 0.3, fw * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hat (winter)
+    ctx.fillStyle = Math.random() > 0.5 ? '#222' : '#555';
+    ctx.fillRect(px - fw * 0.45, py - fh - fw * 0.5, fw * 0.9, fw * 0.3);
+
+    // Raised arm (some)
+    if (Math.random() > 0.6) {
+      const raise = Math.sin(t * 1.2 + i) * 0.2;
+      ctx.fillStyle = lightColor;
+      ctx.save();
+      ctx.translate(px + fw * 0.5, py - fh * 0.7);
+      ctx.rotate(-0.5 + raise);
+      ctx.fillRect(0, -fh * 0.25, fw * 0.25, fh * 0.3);
+      ctx.restore();
+    }
+  }
+}
+
+function drawCrowdFlags(baseY, count, type) {
+  const w = W();
+  for (let i = 0; i < count; i++) {
+    const fx = Math.random() * w;
+    const fy = baseY - Math.random() * H() * 0.05;
+    const fw = w * rng(0.008, 0.016);
+    const fh = fw * 0.6;
+    drawFlag(fx, fy - fh, fw, fh, type, t + i * 0.3);
+  }
+}
+
+function drawBonfires() {
+  const w = W(), h = H();
+  const firePositions = [
+    [w * 0.1, h * 0.76],
+    [w * 0.28, h * 0.78],
+    [w * 0.72, h * 0.77],
+    [w * 0.9, h * 0.75],
+    [w * 0.18, h * 0.82],
+    [w * 0.83, h * 0.81],
+  ];
+
+  firePositions.forEach(([fx, fy]) => {
+    // Ground glow
+    const groundGlow = ctx.createRadialGradient(fx, fy, 0, fx, fy, w * 0.06);
+    groundGlow.addColorStop(0, 'rgba(255,140,20,0.3)');
+    groundGlow.addColorStop(0.5, 'rgba(255,100,10,0.12)');
+    groundGlow.addColorStop(1, 'rgba(255,100,10,0)');
+    ctx.fillStyle = groundGlow;
+    ctx.beginPath();
+    ctx.arc(fx, fy, w * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tire pile / wood
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.ellipse(fx, fy, w * 0.018, h * 0.012, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fire flames (layered)
+    for (let layer = 3; layer >= 0; layer--) {
+      const fSize = (4 - layer) * h * 0.015;
+      const flicker = Math.sin(t * 3 + layer * 1.2 + fx * 0.01) * fSize * 0.2;
+      const fireGrad = ctx.createRadialGradient(fx, fy - fSize * 0.5, 0, fx + flicker, fy - fSize, fSize * 0.4);
+      if (layer === 0) {
+        fireGrad.addColorStop(0, 'rgba(255,255,200,0.95)');
+        fireGrad.addColorStop(0.3, 'rgba(255,220,50,0.8)');
+        fireGrad.addColorStop(1, 'rgba(255,100,0,0)');
+      } else if (layer === 1) {
+        fireGrad.addColorStop(0, 'rgba(255,160,20,0.7)');
+        fireGrad.addColorStop(1, 'rgba(255,60,0,0)');
+      } else {
+        fireGrad.addColorStop(0, 'rgba(200,80,10,0.4)');
+        fireGrad.addColorStop(1, 'rgba(255,30,0,0)');
+      }
+      ctx.fillStyle = fireGrad;
+      ctx.beginPath();
+      ctx.arc(fx + flicker * 0.3, fy - fSize * 0.6, fSize * (0.4 + 0.1 * layer), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
+function updateAndDrawSmoke() {
+  const w = W(), h = H();
+  const smokeSources = [
+    [w * 0.1, h * 0.76], [w * 0.28, h * 0.78],
+    [w * 0.72, h * 0.77], [w * 0.9, h * 0.75],
+    [w * 0.18, h * 0.82], [w * 0.83, h * 0.81],
+  ];
+
+  // Spawn
+  if (Math.random() > 0.5) {
+    const src = smokeSources[Math.floor(Math.random() * smokeSources.length)];
+    smokeParticles.push({ x: src[0] + rng(-5, 5), y: src[1] - h * 0.02, vx: rng(-0.4, 0.4), vy: rng(-0.8, -0.3), life: 0, maxLife: rng(3, 6), size: rng(4, 12), baseX: src[0], baseY: src[1] });
+  }
+
+  // Draw and update
+  smokeParticles = smokeParticles.filter(p => p.life < p.maxLife);
+  smokeParticles.forEach(p => {
+    p.x += p.vx + Math.sin(t * 0.5 + p.y * 0.01) * 0.2;
+    p.y += p.vy;
+    p.size += 0.15;
+    p.life += 0.03;
+    const alpha = (1 - p.life / p.maxLife) * 0.18;
+    const grey = 120 + Math.floor((p.life / p.maxLife) * 80);
+    ctx.fillStyle = `rgba(${grey},${grey},${grey},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function updateAndDrawSnow() {
+  const w = W(), h = H();
+  snowflakes.forEach(sf => {
+    sf.wobble += sf.wobbleSpeed;
+    sf.x += sf.vx + Math.sin(sf.wobble) * 0.3;
+    sf.y += sf.vy;
+    if (sf.y > h) { sf.y = -2; sf.x = Math.random() * w; }
+    if (sf.x > w) sf.x = 0;
+    if (sf.x < 0) sf.x = w;
+
+    ctx.beginPath();
+    ctx.arc(sf.x, sf.y, sf.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(210,220,235,${sf.a})`;
+    ctx.fill();
+  });
+}
+
+function drawAtmosphericEffects() {
+  const w = W(), h = H();
+  // Fog / haze layer in crowd
+  const fogGrd = ctx.createLinearGradient(0, h * 0.55, 0, h * 0.75);
+  fogGrd.addColorStop(0, 'rgba(30,50,70,0)');
+  fogGrd.addColorStop(0.5, 'rgba(30,50,70,0.12)');
+  fogGrd.addColorStop(1, 'rgba(30,50,70,0)');
+  ctx.fillStyle = fogGrd;
+  ctx.fillRect(0, h * 0.55, w, h * 0.2);
+
+  // Vignette
+  const vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, w * 0.75);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, w, h);
+
+  // Orange warm glow from fires casting on crowd
+  const warmGlow = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  warmGlow.addColorStop(0, 'rgba(255,120,20,0.06)');
+  warmGlow.addColorStop(1, 'rgba(255,120,20,0)');
+  ctx.fillStyle = warmGlow;
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+  // Horizon glow (city lights)
+  const horizonGlow = ctx.createLinearGradient(0, h * 0.44, 0, h * 0.55);
+  horizonGlow.addColorStop(0, 'rgba(60,90,140,0)');
+  horizonGlow.addColorStop(0.5, 'rgba(60,90,140,0.2)');
+  horizonGlow.addColorStop(1, 'rgba(60,90,140,0)');
+  ctx.fillStyle = horizonGlow;
+  ctx.fillRect(0, h * 0.44, w, h * 0.12);
+}
+
+function drawDateOverlay() {
+  const w = W(), h = H();
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#d4b060';
+  ctx.font = `${h * 0.016}px 'Raleway', sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText('KYIV · UKRAINE · WINTER 2013–2014', w * 0.02, h * 0.97);
+  ctx.textAlign = 'right';
+  ctx.fillText('REVOLUTION OF DIGNITY', w * 0.98, h * 0.97);
+  ctx.restore();
+}
+
+// ─── Main Draw ─────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W(), H());
+  drawSky();
+  drawDistantBuildings();
+  drawIndependenceMonument();
+  drawGround();
+  drawTentCity();
+  updateAndDrawSmoke();
+  drawCrowd();
+  drawBarricades();
+  drawBonfires();
+  drawStage();
+  updateAndDrawSnow();
+  drawAtmosphericEffects();
+  drawDateOverlay();
+}
+
+// ─── Animation Loop ────────────────────────────────────────────────────────────
+function loop() {
+  t += 0.016;
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initParticles();
+loop();
+</script>
+</body>
+</html>
